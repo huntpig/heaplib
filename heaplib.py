@@ -65,14 +65,17 @@ class HeapPayloadCrafter(object):
                              "Forward consolidation.")
                     self.only_fwd_consol = True
                     self.no_back_consol = True
+                    print "CCCCCCCCCCCCCCCCCCCCCCC"
                     return None
                 else:
                     raise HeaplibException("Not enough space when performing forward consolidation")
+                    print "BBBBBBBBBBBBBBBB"
                     return None
             elif self.can_use(segment, 0, len(segment)):
                 contents = flat(values_list)
                 full_list[i:i+unit_len] = list(contents)
                 assert len(full_list) == total_length
+                print "AAAAAAAAAAAAAAAAAAAAAAAA"
                 return i
             i += 1
 
@@ -94,7 +97,7 @@ class HeapPayloadCrafter(object):
             # -16 and -15 are random values for the BEFORE_C's PREV_SIZE and SIZE
             values_list = [-16, -15, self.destination-12, self.source]
             PREV_SIZE_C = self.find_usable_offset(i, post, unit_len, values_list, self.post_length)
-            if not PREV_SIZE_C: PREV_SIZE_C = -1
+            if PREV_SIZE_C == None: PREV_SIZE_C = -1
             else: PREV_SIZE_C = -(PREV_SIZE_C + (self.size*2))
 
         # If we need to use forward consolidation

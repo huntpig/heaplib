@@ -71,3 +71,6 @@ second = "A"*32 + second
 
 p = process(["./heap3", first, second, third])
 print p.recvline()
+
+
+
