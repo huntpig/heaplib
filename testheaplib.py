@@ -14,38 +14,38 @@ class HeaplibTest(unittest.TestCase):
 
     def test_populate_content_1(self):
         with self.assertRaises(HeaplibException):
-            self.hpc.populate_content(bytes_to_nextheader=120,
-                                      preset_content={120: "A"})
+            self.hpc.populate_content(length=120,
+                                      presets={120: "A"})
 
     def test_populate_content_2(self):
         with self.assertRaises(HeaplibException):
-            self.hpc.populate_content(bytes_to_nextheader=120,
-                                      preset_content={0:"A"*121})
+            self.hpc.populate_content(length=120,
+                                      presets={0:"A"*121})
 
     def test_populate_content_3(self):
         with self.assertRaises(HeaplibException):
-            self.hpc.populate_content(bytes_to_nextheader=120,
-                                      preset_content={0: "AA", 1: "B"})
+            self.hpc.populate_content(length=120,
+                                      presets={0: "AA", 1: "B"})
 
     def test_populate_content_4(self):
         with self.assertRaises(HeaplibException):
-            self.hpc.populate_content(bytes_to_nextheader=120,
-                                      preset_content={120: "A"})
+            self.hpc.populate_content(length=120,
+                                      presets={120: "A"})
 
     def test_populate_content_5(self):
         with self.assertRaises(HeaplibException):
-            self.hpc.populate_content(bytes_to_nextheader=120,
-                                      preset_content={-1: "A"})
+            self.hpc.populate_content(length=120,
+                                      presets={-1: "A"})
 
     def test_populate_content_6(self):
-        payload = self.hpc.populate_content(bytes_to_nextheader=5,
-                                            preset_content={2: "AA"})
+        payload = self.hpc.populate_content(length=5,
+                                            presets={2: "AA"})
         self.assertEquals(payload, list("**AA*"))
 
     def test_populate_content_7(self):
         with self.assertRaises(HeaplibException):
-            self.hpc.populate_content(bytes_to_nextheader=120,
-                                      preset_content={119: "AA"})
+            self.hpc.populate_content(length=120,
+                                      presets={119: "AA"})
 
 
 if __name__ == '__main__':
