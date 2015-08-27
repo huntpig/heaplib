@@ -40,6 +40,8 @@ class HeapPayloadCrafter(object):
         self.populating_character = kw.get("populating_character", "*")
 
     def can_use(self, content, start, length):
+        print repr(content[start: start+length])
+        print repr([self.populating_character] * length)
         return content[start: start+length] == [self.populating_character] * length
 
     def populate_content(self, **kw):
@@ -110,8 +112,9 @@ class HeapPayloadCrafter(object):
                 prev[-4:] = list(after_c)
             else:
                 while True:
-                    segment = post[i: i+unit_len]
-                    if i < 0:
+                    print i, unit_len
+                    segment = prev[i: i+unit_len]
+                    if i < 0 or (len(segment) != unit_len):
                         raise HeaplibException("Not enough space when performing forward consolidation")
                         break
                     elif self.can_use(segment, 0, len(segment)):
@@ -123,7 +126,7 @@ class HeapPayloadCrafter(object):
                     i -= 1
             SIZE_C |= 1
 
-        return PREV_SIZE_C, pack(PREV_SIZE_C), post, SIZE_C, pack(SIZE_C), prev
+        return PREV_SIZE_C, post, SIZE_C, prev
 
     def get_exploit(self):
         """
