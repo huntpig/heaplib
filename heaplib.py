@@ -112,6 +112,8 @@ class HeapPayloadCrafter(object):
             # used to place
             i, unit_len = len(prev), self.size*4
             i -= unit_len
+            # Lets see if the payload size can be reduced, as we don't really need
+            # forward consolidation.
             if prev[-self.size*2:] == [self.populating_character]*self.size*2:
                 SIZE_C = -self.size
                 after_c = flat(-1, -1) # this value is not used
