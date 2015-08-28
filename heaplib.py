@@ -112,10 +112,10 @@ class HeapPayloadCrafter(object):
             # used to place
             i, unit_len = len(prev), self.size*4
             i -= unit_len
-            if prev[-self.size:] == [self.populating_character]*self.size:
+            if prev[-self.size*2:] == [self.populating_character]*self.size*2:
                 SIZE_C = -self.size
-                after_c = flat(-1) # this value is not used
-                prev[-self.size:] = list(after_c)
+                after_c = flat(-1, -1) # this value is not used
+                prev[-self.size*2:] = list(after_c)
             else:
                 values_list = [-16, -1, -16, -32]
                 SIZE_C = self.find_usable_offset(i, prev, unit_len, values_list, self.pre_length, backward=False)
