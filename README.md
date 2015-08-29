@@ -37,7 +37,7 @@ into 3 sections.
 3. POST : This is the part of the input after the metadata that contains
   the crafted free block.
 
-# Right, so how do I use the API?
+## Right, so how do I use the API?
 First you create an instance of heaplib as follows:
 
 ```python
