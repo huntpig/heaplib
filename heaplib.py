@@ -130,11 +130,12 @@ class HeapPayloadCrafter(object):
         else:
             # Find a contiguous chunk towards the end of `prev` that can be
             # used to place
+            # i == 8 as we don't want MMAP flag to trigger
             i, unit_len = len(prev)-8, self.size*3
             i -= unit_len
             # Lets see if the payload size can be reduced, as we don't really need
             # forward consolidation.
-            if prev[-self.size*2:] == [self.populating_character]*self.size*2:
+            if prev[-self.size*2:] == [self.populating_character]*self.size*2 and PREV_SIZE_C == -4:
                 SIZE_C = -self.size
                 after_c = flat(-1, -1) # this value is not used
                 prev[-self.size*2:] = list(after_c)
