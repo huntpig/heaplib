@@ -9,7 +9,7 @@ for the dlmalloc allocator(without the security checks upon unlink).
 
 ## How can I use the library?
 I'm glad you asked. For a PoC, feel free to check out
-https://github.com/eQu1NoX/heaplib/blob/master/sploit.py.
+https://github.com/eQu1NoX/heaplib/blob/master/heap3_sploit.py.
 
 ## O..k, so what exactly does it help me with?
 Currently, heaplib assumes a rather simplistic model for heap
