@@ -99,7 +99,7 @@ class HeapPayloadCrafter(object):
             if backward: i += 1
             else: i -= 2
 
-    def generate_payload(self):
+    def generate_payload_dlmalloc(self):
         """
         Generate the payload that will be used to perform arbitrary memory
         writes during unlink.
@@ -152,11 +152,10 @@ class HeapPayloadCrafter(object):
 
         return prev, (PREV_SIZE_C, SIZE_C), post
 
-    def __str__(self):
-        return ''.join(self.get_exploit())
-
-
-
+    def generate_payload(self):
+        if self.allocator == "dlmalloc":
+            return self.generate_payload_dlmalloc()
+        raise HeaplibException("Allocator not supported.")
 
 """
 # TODO support for overwriting using forward consolidation
