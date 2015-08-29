@@ -71,6 +71,11 @@ class DlmallocPayloadCrafter(object):
         presets = kw.get("presets", None)
         length = kw.get("length", None)
 
+        if not presets:
+            raise HeaplibException("Incorrect `presets` value specified.")
+        if not length:
+            raise HeaplibException("Incorrect `length` value specified.")
+
         full_content = [self.populating_character] * length
         for offset in presets:
             content = presets[offset]
@@ -79,15 +84,19 @@ class DlmallocPayloadCrafter(object):
             if start < 0 and start >= length:
                 raise HeaplibException("Invalid start offset when populating content")
             elif end > length:
-                raise HeaplibException("Invalid end offset(%d) when populating content. Length=%d" % (end, length))
+                raise HeaplibException("Invalid end offset(%d) when populating content."\
+                                       "Length=%d" % (end, length))
 
             if not self.can_use(full_content, start, len(content)):
-                raise HeaplibException("Offset (%d: %d) is already used" %(start, start+len(content)))
+                raise HeaplibException("Offset (%d: %d) is already used"
+                                       %(start, start+len(content)))
+
             full_content[start:end] = content
 
         return full_content
 
-    def find_usable_offset(self, i, full_list, unit_len, values_list, total_length, backward=True):
+    def find_usable_offset(self, i, full_list, unit_len, values_list, total_length,
+                           backward=True):
         """
         A helper function that finds the a contiguous segment in `full_list` that can be
         used to place fake frames.
@@ -154,13 +163,13 @@ class DlmallocPayloadCrafter(object):
 
         prev = self.populate_content(presets=self.pre_preset,  length=self.pre_length)
         post = self.populate_content(presets=self.post_preset, length=self.post_length)
-        metadata = ""
 
         # If we can use backward consolidation to write the exploit
         if not self.only_fwd_consol:
             # Find a contiguous chunk of (self.size*4) bytes that can
             # be used
             i, unit_len = 0, self.size*4
+
             # -16 and -15 are random values for the BEFORE_C's PREV_SIZE and SIZE
             values_list = [-16, -15, self.destination-12, self.source]
             PREV_SIZE_C = self.find_usable_offset(i, post, unit_len, values_list, self.post_length)
