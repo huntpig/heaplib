@@ -27,7 +27,8 @@ thinks it is the free chunk just after "C".
 
 When performing a simple heap exploit, you typically want your input
 to "overflow" into the metadata of "C". Hence, we can divide our input
-into 3 sections :
+into 3 sections.
+
 1. PREV : This is the part of the input that lets you reach the
    metadata. For eg: suppose you need 32 bytes to reach the metadata of
    "C", the length of PREV would be 32 bytes.
