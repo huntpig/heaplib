@@ -2,7 +2,7 @@
 from pwn import *
 
 """
-Terminology :
+Dlmalloc Terminology :
     Chunk whose metadata is being overwritten and later freed     :    "C"
     Chunk that is 'before' C(crafted block); "C - PREV_SIZE_C"    :    "BEFORE_C"
     Chunk that is 'after'  C(crafted block)  "C + SIZE_C"         :    "AFTER_C"
@@ -11,7 +11,10 @@ Terminology :
 class HeaplibException(Exception):
     pass
 
-class HeapPayloadCrafter(object):
+class DlmallocPayloadCrafter(object):
+    """
+    Class that assists with generating payloads for Dlmalloc exploitation.
+    """
     def __init__(self, destination, source, **kw):
         """
         destination    :   Address to which `source` must be written out to.
@@ -25,7 +28,6 @@ class HeapPayloadCrafter(object):
         self.source_2             = kw.get("source_2", None)
         self.only_fwd_consol      = kw.get("only_fwd_consol", False)
         self.no_back_consol       = kw.get("no_back_consol", False)
-        self.allocator            = kw.get("allocator", "dlmalloc")
         self.pre_length           = kw.get("pre_length", None)
         self.post_length          = kw.get("post_length", None)
         self.pre_preset           = kw.get("pre_preset", {})
@@ -99,7 +101,7 @@ class HeapPayloadCrafter(object):
             if backward: i += 1
             else: i -= 2
 
-    def generate_payload_dlmalloc(self):
+    def generate_payload(self):
         """
         Generate the payload that will be used to perform arbitrary memory
         writes during unlink.
@@ -152,10 +154,15 @@ class HeapPayloadCrafter(object):
 
         return prev, (PREV_SIZE_C, SIZE_C), post
 
+allocators = {"dlmalloc": DlmallocPayloadCrafter}
+
+class HeapPayloadCrafter(object):
+    def __init__(self, allocator, *args, **kwargs):
+        self.payload_crafter = allocators[allocator](*args, **kwargs)
+
     def generate_payload(self):
-        if self.allocator == "dlmalloc":
-            return self.generate_payload_dlmalloc()
-        raise HeaplibException("Allocator not supported.")
+        return self.payload_crafter.generate_payload()
+
 
 """
 # TODO support for overwriting using forward consolidation
@@ -165,4 +172,3 @@ class HeapPayloadCrafter(object):
 # TODO support for overwriting using frontlink method
 # TODO what if we can overwrite ONLY the metadata of C
 """
-
