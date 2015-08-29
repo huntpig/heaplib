@@ -161,7 +161,9 @@ class DlmallocPayloadCrafter(object):
 
         PREV_SIZE_C, SIZE_C = None, None
 
+        #-============================================================================]
         # First we position and place "BEFORE_C"
+
         if self.positioning["BEFORE_C"] == "post":
             if self.no_back_consol:
                 pass
@@ -183,7 +185,9 @@ class DlmallocPayloadCrafter(object):
             else:
                 pass
 
-        # Next we try to place "AFTER_C"
+        #-============================================================================]
+        # Next, we try to position and place "AFTER_C"
+
         if self.positioning["AFTER_C"] == "prev":
             if self.no_fwd_consol:
                 # Find a contiguous chunk towards the end of `prev` that can be
@@ -217,6 +221,11 @@ class DlmallocPayloadCrafter(object):
                 pass
             else:
                 pass
+
+        #-============================================================================]
+        # Positoning done, payload created, yaay.
+        assert SIZE_C is not None
+        assert PREV_SIZE_C is not None
 
         log.debug("-=================================]")
         log.debug("prev length = %d" % len(prev))
