@@ -152,6 +152,16 @@ class DlmallocPayloadCrafter(object):
             else:
                 SIZE_C &= (-2)   # fffffffe or its equivalent based on arch
 
+        log.debug("-=================================]")
+        log.debug("prev length = %d" % len(prev))
+        log.debug("post length = %d" % len(post))
+        log.debug("PREV_SIZE_C = %s   %d" % (hex(PREV_SIZE_C & 0xffffffff), PREV_SIZE_C))
+        log.debug("SIZE_C      = %s   %d" % (hex(SIZE_C & 0xffffffff), SIZE_C))
+        log.debug("-=================================]")
+        log.debug("prev          = %s" % repr(prev))
+        log.debug("post          = %s" % repr(post))
+        log.debug("-=================================]")
+
         return prev, (PREV_SIZE_C, SIZE_C), post
 
 allocators = {"dlmalloc": DlmallocPayloadCrafter}
