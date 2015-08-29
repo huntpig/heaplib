@@ -4,7 +4,8 @@
 Heaplib is a library aimed at aiding you in writing heap exploits
 for dlmalloc. Currently, it has support for overwriting addresses
 using backward consolidation only, though we plan to add support
-for overwrites using forward consolidation too.
+for overwrites using forward consolidation too. Currently, its written
+for the dlmalloc allocator(without the security checks upon unlink).
 
 ## How can I use the library?
 I'm glad you asked. For a PoC, feel free to check out
