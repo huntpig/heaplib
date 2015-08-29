@@ -71,8 +71,6 @@ class DlmallocPayloadCrafter(object):
         presets = kw.get("presets", None)
         length = kw.get("length", None)
 
-        if not presets:
-            raise HeaplibException("Incorrect `presets` value specified.")
         if not length:
             raise HeaplibException("Incorrect `length` value specified.")
 

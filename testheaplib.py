@@ -1,11 +1,15 @@
 import unittest
 
 from heaplib import HeapPayloadCrafter, HeaplibException
+from heaplib import DlmallocPayloadCrafter
+
+from pwn import *
 
 class HeaplibTest(unittest.TestCase):
     def setUp(self):
-        self.hpc = HeapPayloadCrafter(0x41414141, 0x42424242)
-        self.hpc_2 = HeapPayloadCrafter(0x41414141, 0x42424242, post_length=20, pre_length=20)
+        self.hpc   = DlmallocPayloadCrafter(0x41414141, 0x42424242)
+        self.hpc_2 = DlmallocPayloadCrafter(0x41414141, 0x42424242,
+                                            post_length=20, pre_length=20)
 
     def test_can_use_1(self):
         self.assertFalse(self.hpc.can_use("A**A", 0, 2))
@@ -51,10 +55,13 @@ class HeaplibTest(unittest.TestCase):
     def test_generate_payload_1(self):
         prev, metadata, post = self.hpc_2.generate_payload()
         PREV_SIZE_C, SIZE_C = metadata
-        self.assertEquals(PREV_SIZE_C, -1)
-        self.assertEquals(SIZE_C, -4)
-        self.assertEquals(prev, ['*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '\xff', '\xff', '\xff', '\xff'])
-        self.assertEquals(post, ['\xf0', '\xff', '\xff', '\xff', '\xf1', '\xff', '\xff', '\xff', '5', 'A', 'A', 'A', 'B', 'B', 'B', 'B', '*', '*', '*', '*'])
+        self.assertEquals(PREV_SIZE_C, -8)
+        self.assertEquals(SIZE_C, -16)
+
+        self.assertEquals(prev, ['\xff']*8 + ['\xfd'] + ['\xff']*3 + ['*']*8)
+        self.assertEquals(post, ['\xf0'] + ['\xff']*3 + ['\xf1'] + ['\xff']*3 +
+                                list(flat(0x41414141-0xc, 0x42424242)) +
+                                ['*']*4)
         self.assertEquals(len(prev), 20)
         self.assertEquals(len(post), 20)
 
