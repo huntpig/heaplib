@@ -162,7 +162,7 @@ class DlmallocPayloadCrafter(object):
         PREV_SIZE_C, SIZE_C = None, None
 
         #-============================================================================]
-        # First we position and place "BEFORE_C"
+        # First, we position and place "BEFORE_C"
 
         if self.positioning["BEFORE_C"] == "post":
             if self.no_back_consol:
