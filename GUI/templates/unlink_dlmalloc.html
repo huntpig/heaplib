@@ -1,0 +1,35 @@
+<html>
+<title>{{ title }}</title>
+<body>
+<h3>{{ heading }}</h3>
+  <p>This page will require you to fill in information that will
+  be used to craft your heap exploit payload.</p>
+
+  <form action="/dlmalloc_unlink" method="POST">
+
+    Bits ?<br>
+    <input type="radio" name="bits" value="32" checked> 32
+    <br>
+    <input type="radio" name="bits" value="64"> 64
+    <br>
+
+    Are null-bytes allowed in the payload?<br>
+    <input type="radio" name="null_bytes" value="No" checked> No
+    <br>
+    <input type="radio" name="null_bytes" value="Yes"> Yes
+    <br>
+
+    Address to overwrite? <input type="text" name="address_to_overwrite" value=0x41414141><br>
+    Value to overwrite with? <input type="text" name="value_to_overwrite" value=0x42424242><br>
+
+    Length of pre <input type="text" name="pre_length" value=100><br>
+    Length of post<input type="text" name="post_length" value=100><br>
+
+    Pre presets <input type="text" name="pre_presets" value="{}"><br>
+    Post presets <input type="text" name="post_presets" value="{}"><br>
+
+    <input type="submit" value="Submit">
+  </form>
+
+</body>
+</html>
