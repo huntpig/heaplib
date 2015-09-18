@@ -2,13 +2,20 @@ from flask import Flask, url_for, request, render_template
 
 app = Flask(__name__)
 
+"""
+Exception class that is used by this Flask App.
+"""
+class HeaplibFrontendException(Exception):
+    pass
+
+"""
+Views that correspond to various URLs in this Flask app.
+"""
+
 @app.route("/hello/")
 @app.route("/hello/<name>")
 def hello(name=None):
     return render_template('hello.html', name=name)
-
-    #with app.test_request_context():
-        #return "Index page that describes how to use the tool => " + url_for('unlink_method')
 
 @app.route("/dlmalloc_unlink", methods=['GET', 'POST'])
 def dlmalloc_unlink_method():
@@ -65,8 +72,10 @@ def root():
                                         ho_lore_url=url_for('ho_lore_url'),
                                         title=t, heading=t)
 
-###################################################################
-# VIEWS
+
+"""
+Utility functions used by this Flask application.
+"""
 
 from heaplib import *
 import json
@@ -99,9 +108,15 @@ def process_dlmalloc_unlink_sd(request):
     post = %s
     (PREV_SIZE_C, SIZE_C) = pack(%s), pack(%s)
     """
-    chunk_to_overflow_into = int(request.form.get('chunk_to_overflow_into', None).split(":")[0], 16)
-    data_that_overflows = int(request.form.get('data_that_overflows', None).split(":")[0], 16)
-    end_point_data_after_C = int(request.form.get('end_point_data_after_C', None).split(":")[0], 16)
+    for key in ['chunk_to_overflow_into', 'data_that_overflows', 'end_point_data_after_C',
+                'address_to_overwrite', 'value_to_overwrite', 'pre_presets', 'post_presets',
+                'bits']:
+        if key not in request.form:
+            raise HeaplibFrontendException("Parameter '%s' not found in request object." % key)
+
+    chunk_to_overflow_into = int(request.form['chunk_to_overflow_into'].split(":")[0], 16)
+    data_that_overflows = int(request.form['data_that_overflows'].split(":")[0], 16)
+    end_point_data_after_C = int(request.form['end_point_data_after_C'].split(":")[0], 16)
     hpc = HeapPayloadCrafter("dlmalloc",
                              int(request.form['address_to_overwrite'], 16),
                              int(request.form['value_to_overwrite'], 16),

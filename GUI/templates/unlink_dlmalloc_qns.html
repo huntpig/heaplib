@@ -6,34 +6,52 @@
   be used to craft your heap exploit payload.</p>
 
   <form action="{{ action_link_1 }}" method="POST" enctype="multipart/form-data">
-    Choose the chunk you want to overflow into<br>
+    <b>Choose the chunk you want to overflow into</b><br><br>
     {{ chunk_to_overflow_into|safe }}<br>
 
-    Choose the starting location of the data that
-    overflows into the chunk you have selected above<br>
+    <b>Choose the starting location of the data that
+      overflows into the chunk you have selected above</b><br><br>
     {{ data_that_overflows|safe }}<br>
 
-    Are null-bytes allowed in the payload?<br>
-    <input type="radio" name="null_bytes" value="No" checked> No
-    <br>
-    <input type="radio" name="null_bytes" value="Yes"> Yes
-    <br>
-
-    Bits ?<br>
-    <input type="radio" name="bits" value="32" checked> 32
-    <br>
-    <input type="radio" name="bits" value="64"> 64
-    <br>
-
-    Upto what location after the metadata of the chunk overflown
-    into, can you write data?<br>
+    <b>Upto what locationi after the metadata of the chunk overflown
+    into, can you write data?</b><br><br>
     {{ end_point_data_after_C|safe }}
 
-    Address to overwrite?(eg: GOT entry?) <input type="text" name="address_to_overwrite" value=0x41414141><br>
-    Value to overwrite with?(eg: shellcode address?) <input type="text" name="value_to_overwrite" value=0x42424242><br>
+    <table>
+      <tr>
+        <td>Address to overwrite?(eg: GOT entry?)</td>
+        <td><input type="text" name="address_to_overwrite" value=0x41414141></td>
+      </tr>
 
-    Are there any values to set in the region before the chunk to be overflown(Pre presets)? <input type="text" name="pre_presets" value="{}"><br>
-    Are there any values to set in the region after the chunk to be overflown(Post presets)? <input type="text" name="post_presets" value="{}"><br>
+      <tr>
+        <td>Value to overwrite with?(eg: shellcode address?)</td>
+        <td><input type="text" name="value_to_overwrite" value=0x42424242></td>
+      </tr>
+
+      <tr>
+        <td>Are there any values to set in the region before the chunk to be overflown(Pre presets)?</td>
+        <td><input type="text" name="pre_presets" value="{}"></td>
+      </tr>
+
+      <tr>
+        <td>Are there any values to set in the region after the chunk to be overflown(Post presets)?</td>
+        <td><input type="text" name="post_presets" value="{}"></td>
+      </tr>
+
+      <tr>
+        <td>Are null-bytes allowed in the payload?</td>
+        <td><input type="radio" name="null_bytes" value="No" checked> No <br>
+            <input type="radio" name="null_bytes" value="Yes"> Yes <br>
+        </td>
+      </tr>
+
+      <tr>
+        <td>Bits ?</td>
+        <td><input type="radio" name="bits" value="32" checked> 32 <br>
+            <input type="radio" name="bits" value="64"> 64 <br>
+        </td>
+      </tr>
+    </table>
 
     <input type="submit" name="Submit">
   </form>
