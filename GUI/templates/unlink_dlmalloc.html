@@ -1,32 +1,74 @@
 <html>
 <title>{{ title }}</title>
 <body>
-<h3>{{ heading }}</h3>
-  <p>This page will require you to fill in information that will
-  be used to craft your heap exploit payload.</p>
+<h2><center><u>{{ heading }}</u></center></h2>
 
-  <form action="/dlmalloc_unlink" method="POST">
+<p><h4><center>Fill in information that will
+    be used to craft your heap exploit payload.</center></h4></p>
 
-    Bits ?<br>
-    <input type="radio" name="bits" value="32" checked> 32
-    <br>
-    <input type="radio" name="bits" value="64"> 64
-    <br>
+<p> <b>Option 1.</b> Upload the stack dump, answer
+  a few questions and generate your payload.
 
-    Are null-bytes allowed in the payload?<br>
-    <input type="radio" name="null_bytes" value="No" checked> No
-    <br>
-    <input type="radio" name="null_bytes" value="Yes"> Yes
-    <br>
+  <form action="{{ action_link_1 }}" method="POST" enctype="multipart/form-data">
+    <table>
+      <tr>
+        <td><input type="file" name="stack_dump" accept=".txt"><br></td>
+        <td><input type="submit" name="Submit"></td>
+      </tr>
+    </table>
+  </form>
 
-    Address to overwrite? <input type="text" name="address_to_overwrite" value=0x41414141><br>
-    Value to overwrite with? <input type="text" name="value_to_overwrite" value=0x42424242><br>
 
-    Length of pre <input type="text" name="pre_length" value=100><br>
-    Length of post<input type="text" name="post_length" value=100><br>
+  <p><b>Option 2.</b> Fill out the following information and
+  generate your payload.</p>
 
-    Pre presets <input type="text" name="pre_presets" value="{}"><br>
-    Post presets <input type="text" name="post_presets" value="{}"><br>
+  <form action="{{ action_link_2 }}" method="POST">
+
+    <table>
+      <tr>
+        <td>Bits ?</td>
+        <td><input type="radio" name="bits" value="32" checked> 32 <br>
+          <input type="radio" name="bits" value="64"> 64 <br>
+        </td>
+      </tr>
+
+      <tr>
+        <td>Are null-bytes allowed in the payload?</td>
+        <td><input type="radio" name="null_bytes" value="No" checked> No <br>
+          <input type="radio" name="null_bytes" value="Yes"> Yes <br>
+        </td>
+      </tr>
+
+      <tr>
+        <td>Address to overwrite?</td>
+        <td><input type="text" name="address_to_overwrite" value=0x41414141><br></td>
+      </tr>
+
+      <tr>
+        <td>Value to overwrite with?</td>
+        <td><input type="text" name="value_to_overwrite" value=0x42424242></td>
+      </tr>
+
+      <tr>
+        <td>Length of pre</td>
+        <td><input type="text" name="pre_length" value=100></td>
+      </tr>
+
+      <tr>
+        <td>Length of post</td>
+        <td><input type="text" name="post_length" value=100></td>
+      </tr>
+
+      <tr>
+        <td>Pre presets</td>
+        <td><input type="text" name="pre_presets" value="{}"></td>
+      </tr>
+
+      <tr>
+        <td>Post presets</td>
+        <td><input type="text" name="post_presets" value="{}"></td>
+      </tr>
+    </table>
 
     <input type="submit" value="Submit">
   </form>

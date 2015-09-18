@@ -1,0 +1,3 @@
+- Clean up the table generating to use JINJA
+- Be able to set presets from the stack dump
+- 
